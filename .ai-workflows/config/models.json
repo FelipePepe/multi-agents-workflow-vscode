@@ -1,0 +1,39 @@
+{
+  "version": "1.0.0",
+  "provider": "ollama",
+  "baseUrl": "http://localhost:11434",
+  "defaultModel": "qwen3.6:35b-a3b",
+  "models": {
+    "orchestrator": "qwen3.6:35b-a3b",
+    "explorer":     "qwen3.6:35b-a3b",
+    "proposal":     "deepseek-r1:70b",
+    "spec":         "qwen3-coder-next",
+    "design":       "deepseek-r1:70b",
+    "tasks":        "qwen3-coder-next",
+    "implementer":  "qwen3-coder-next",
+    "tester":       "devstral-small-2",
+    "verifier":     "deepseek-r1:70b",
+    "fixer":        "devstral-small-2",
+    "archiver":     "north-mini-code-1.0",
+    "fallback":     "qwen2.5-coder:32b"
+  },
+  "alternativeModels": {
+    "implementer": ["devstral-small-2", "qwen2.5-coder:32b"],
+    "tester":      ["north-mini-code-1.0"],
+    "proposal":    ["qwen3.6:35b-a3b"],
+    "fixer":       ["qwen3-coder-next"]
+  },
+  "required": [
+    "qwen3.6:35b-a3b",
+    "qwen3-coder-next",
+    "deepseek-r1:70b",
+    "devstral-small-2",
+    "north-mini-code-1.0",
+    "qwen2.5-coder:32b"
+  ],
+  "cloud": {
+    "enabled": false,
+    "providers": {},
+    "note": "Cloud models are disabled by default. Set enabled=true and configure a provider to use them."
+  }
+}

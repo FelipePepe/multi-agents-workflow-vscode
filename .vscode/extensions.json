@@ -1,0 +1,34 @@
+{
+  "recommendations": [
+    // AI coding assistants — core tools for driving the SDD workflow via local Ollama models
+    "continue.continue",
+
+    // Roo Cline — agentic AI coding assistant, supports Ollama as a provider
+    "rooveterinaryinc.roo-cline",
+
+    // Claude Dev (Cline) — Anthropic Claude-powered agent, alternative AI driver for the workflow
+    "saoudrizwan.claude-dev",
+
+    // VS Code Speech — optional voice input for AI prompts
+    "ms-vscode.vscode-speech",
+
+    // Markdown All in One — essential for reading/editing all SDD artifact .md files
+    "yzhang.markdown-all-in-one",
+
+    // Markdown Preview Mermaid Support — renders architecture diagrams embedded in SDD design docs
+    "bierner.markdown-mermaid",
+
+    // PowerShell — enables Windows-compatible script tasks (.ps1) defined in tasks.json
+    "ms-vscode.powershell",
+
+    // ShellCheck — lints all .sh scripts in .ai-workflows/scripts/ for correctness and safety
+    "timonwong.shellcheck",
+
+    // Shell Format — auto-formats .sh and .ps1 scripts for consistency
+    "foxundermoon.shell-format",
+
+    // GitLens — provides rich git history and blame annotations, useful during sdd-verify phase
+    "eamodio.gitlens"
+  ],
+  "unwantedRecommendations": []
+}

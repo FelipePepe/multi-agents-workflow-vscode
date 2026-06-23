@@ -1,0 +1,203 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "SDD: Detect Stack",
+      "detail": "Scans the workspace for stack marker files and prints the detected technology stack and available commands.",
+      "type": "shell",
+      "command": "bash",
+      "args": [".ai-workflows/scripts/detect-stack.sh"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": ["-ExecutionPolicy", "Bypass", "-File", ".ai-workflows/scripts/detect-stack.ps1"]
+      }
+    },
+    {
+      "label": "SDD: Check Ollama Models",
+      "detail": "Checks that all required Ollama models from models.json are pulled and available locally. Prints missing models with the pull command.",
+      "type": "shell",
+      "command": "bash",
+      "args": [".ai-workflows/scripts/ollama-check-models.sh"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": ["-ExecutionPolicy", "Bypass", "-File", ".ai-workflows/scripts/ollama-check-models.ps1"]
+      }
+    },
+    {
+      "label": "SDD: Run Build",
+      "detail": "Detects the project stack and runs the appropriate build command (e.g. dotnet build, npm run build, mvn compile). Logs output to .ai-workflows/logs/.",
+      "type": "shell",
+      "command": "bash",
+      "args": [".ai-workflows/scripts/run-build.sh"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": ["-ExecutionPolicy", "Bypass", "-File", ".ai-workflows/scripts/run-build.ps1"]
+      }
+    },
+    {
+      "label": "SDD: Run Tests",
+      "detail": "Detects the project stack and runs the appropriate test command (e.g. dotnet test, npm test, mvn test, pytest). Logs results to .ai-workflows/logs/.",
+      "type": "shell",
+      "command": "bash",
+      "args": [".ai-workflows/scripts/run-tests.sh"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": ["-ExecutionPolicy", "Bypass", "-File", ".ai-workflows/scripts/run-tests.ps1"]
+      }
+    },
+    {
+      "label": "SDD: Run Validation",
+      "detail": "Full validation pipeline: detects stack, then runs build, tests, and lint in sequence. Writes a summary to .ai-workflows/logs/validation-summary.md.",
+      "type": "shell",
+      "command": "bash",
+      "args": [".ai-workflows/scripts/run-validation.sh"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": ["-ExecutionPolicy", "Bypass", "-File", ".ai-workflows/scripts/run-validation.ps1"]
+      }
+    },
+    {
+      "label": "SDD: Start New Change",
+      "detail": "Opens the 'start-sdd-change.md' prompt template. Copy its contents and paste into your AI tool (Continue, Roo Cline, or Claude Dev) to begin a new SDD change cycle.",
+      "type": "shell",
+      "command": "code",
+      "args": ["${workspaceFolder}/.ai-workflows/prompts/start-sdd-change.md"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "SDD: Continue Change",
+      "detail": "Opens the 'continue-sdd-change.md' prompt template. Paste it into your AI tool to resume an in-progress SDD change from the last completed phase.",
+      "type": "shell",
+      "command": "code",
+      "args": ["${workspaceFolder}/.ai-workflows/prompts/continue-sdd-change.md"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "SDD: Verify Change",
+      "detail": "Runs full validation first, then opens the verification prompt template. Use to confirm implementation correctness before archiving.",
+      "type": "shell",
+      "command": "code",
+      "args": ["${workspaceFolder}/.ai-workflows/prompts/verify-current-change.md"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": ["SDD: Run Validation"],
+      "dependsOrder": "sequence",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "SDD: Archive Change",
+      "detail": "Opens the 'continue-sdd-change.md' prompt template pre-filled for the archive phase. Paste into your AI tool after receiving a PASS or PASS_WITH_WARNINGS verdict.",
+      "type": "shell",
+      "command": "code",
+      "args": ["${workspaceFolder}/.ai-workflows/prompts/continue-sdd-change.md"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "SDD: Open Workflow README",
+      "detail": "Opens the main workflow README in the editor for quick reference of the SDD process, agent roles, and available scripts.",
+      "type": "shell",
+      "command": "code",
+      "args": ["${workspaceFolder}/.ai-workflows/README.md"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared",
+        "clear": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}

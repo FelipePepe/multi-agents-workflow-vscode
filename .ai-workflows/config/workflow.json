@@ -1,0 +1,195 @@
+{
+  "version": "1.0.0",
+  "phases": [
+    {
+      "id": "sdd-explore",
+      "order": 1,
+      "name": "Explore",
+      "agent": "explorer",
+      "model": "qwen3.6:35b-a3b",
+      "description": "Analyze the codebase to understand the current state, existing patterns, and constraints relevant to the upcoming change. Produces a factual exploration report — no solutions yet.",
+      "artifact": {
+        "reads": [],
+        "writes": "01-explore.md"
+      },
+      "validationGate": null,
+      "prerequisitePhases": []
+    },
+    {
+      "id": "sdd-propose",
+      "order": 2,
+      "name": "Propose",
+      "agent": "proposal",
+      "model": "deepseek-r1:70b",
+      "description": "Draft a change proposal that defines the intent, scope, approach, and high-level impact. The proposal must be grounded in the explore findings and not invent facts.",
+      "artifact": {
+        "reads": ["01-explore.md"],
+        "writes": "02-proposal.md"
+      },
+      "validationGate": null,
+      "prerequisitePhases": ["sdd-explore"]
+    },
+    {
+      "id": "sdd-spec",
+      "order": 3,
+      "name": "Spec",
+      "agent": "spec",
+      "model": "qwen3-coder-next",
+      "description": "Write precise, testable specifications: functional requirements, acceptance criteria, edge cases, and out-of-scope items. Must trace back to the proposal.",
+      "artifact": {
+        "reads": ["01-explore.md", "02-proposal.md"],
+        "writes": "03-spec.md"
+      },
+      "validationGate": null,
+      "prerequisitePhases": ["sdd-explore", "sdd-propose"]
+    },
+    {
+      "id": "sdd-design",
+      "order": 4,
+      "name": "Design",
+      "agent": "design",
+      "model": "deepseek-r1:70b",
+      "description": "Produce the technical design: architecture decisions, component interactions, data flow, interface contracts, migration strategy, and risk assessment.",
+      "artifact": {
+        "reads": ["01-explore.md", "02-proposal.md", "03-spec.md"],
+        "writes": "04-design.md"
+      },
+      "validationGate": null,
+      "prerequisitePhases": ["sdd-explore", "sdd-propose", "sdd-spec"]
+    },
+    {
+      "id": "sdd-tasks",
+      "order": 5,
+      "name": "Tasks",
+      "agent": "tasks",
+      "model": "qwen3-coder-next",
+      "description": "Break the design into a concrete, ordered implementation task checklist. Each task must reference specific files and be independently verifiable. Tasks exceeding the file batch limit must be split.",
+      "artifact": {
+        "reads": ["03-spec.md", "04-design.md"],
+        "writes": "05-tasks.md"
+      },
+      "validationGate": null,
+      "prerequisitePhases": ["sdd-spec", "sdd-design"]
+    },
+    {
+      "id": "sdd-apply",
+      "order": 6,
+      "name": "Apply",
+      "agent": "implementer",
+      "model": "qwen3-coder-next",
+      "description": "Implement the tasks from 05-tasks.md in order, writing actual production code. Each batch must not exceed maxFilesPerImplementationBatch. Progress is tracked in the apply-progress artifact.",
+      "artifact": {
+        "reads": ["03-spec.md", "04-design.md", "05-tasks.md"],
+        "writes": "06-apply-progress.md"
+      },
+      "validationGate": null,
+      "prerequisitePhases": ["sdd-spec", "sdd-design", "sdd-tasks"]
+    },
+    {
+      "id": "sdd-verify",
+      "order": 7,
+      "name": "Verify",
+      "agent": "verifier",
+      "model": "deepseek-r1:70b",
+      "description": "Validate that the implementation satisfies every spec requirement and task. Runs the validation gate (build, tests, lint). Produces a structured verification report with PASS / PASS_WITH_WARNINGS / FAIL verdict.",
+      "artifact": {
+        "reads": ["03-spec.md", "05-tasks.md", "06-apply-progress.md"],
+        "writes": "07-verify-report.md"
+      },
+      "validationGate": "scripts/run-validation.sh",
+      "prerequisitePhases": ["sdd-apply"]
+    },
+    {
+      "id": "sdd-archive",
+      "order": 8,
+      "name": "Archive",
+      "agent": "archiver",
+      "model": "north-mini-code-1.0",
+      "description": "Compile the complete change record: summary of all phases, final diff stats, lessons learned, and follow-up items. Archives the full artifact set under .ai-workflows/sdd/archive/. Only runs after PASS or PASS_WITH_WARNINGS verdict.",
+      "artifact": {
+        "reads": [
+          "01-explore.md",
+          "02-proposal.md",
+          "03-spec.md",
+          "04-design.md",
+          "05-tasks.md",
+          "06-apply-progress.md",
+          "07-verify-report.md"
+        ],
+        "writes": "08-archive-report.md"
+      },
+      "validationGate": null,
+      "prerequisitePhases": ["sdd-verify"]
+    }
+  ],
+  "rules": {
+    "maxFilesPerImplementationBatch": 4,
+    "requireSpecBeforeImplementation": true,
+    "requireDesignBeforeImplementation": true,
+    "requireTasksBeforeImplementation": true,
+    "requirePassOrPassWithWarningsToArchive": true,
+    "splitTaskIfFilesExceed": 4,
+    "preferPatchStyleChanges": true,
+    "noAgentReviewsOwnCode": true
+  },
+  "multiModelReviewLoop": {
+    "maxIterations": 5,
+    "stopConditions": [
+      "All tests pass and lint reports zero errors",
+      "Verifier agent returns PASS or PASS_WITH_WARNINGS",
+      "No new issues introduced relative to prior iteration",
+      "maxIterations reached — escalate to human review"
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "id": "implement",
+        "agent": "implementer",
+        "model": "qwen3-coder-next",
+        "action": "Write or update code for the current task batch. Output a unified diff or full file replacements. Do NOT exceed maxFilesPerImplementationBatch."
+      },
+      {
+        "step": 2,
+        "id": "test",
+        "agent": "tester",
+        "model": "devstral-small-2",
+        "action": "Write or update unit and integration tests for the code produced in step 1. Tests must cover all acceptance criteria from 03-spec.md."
+      },
+      {
+        "step": 3,
+        "id": "build-lint",
+        "agent": "orchestrator",
+        "model": "qwen3.6:35b-a3b",
+        "action": "Run scripts/run-build.sh and scripts/run-tests.sh. Capture stdout/stderr. Classify failures as BUILD_ERROR, TEST_FAILURE, LINT_ERROR, or CLEAN."
+      },
+      {
+        "step": 4,
+        "id": "verify",
+        "agent": "verifier",
+        "model": "deepseek-r1:70b",
+        "action": "Review the code diff and test results against 03-spec.md and 05-tasks.md. Identify spec violations, missing edge cases, and quality issues. Return a structured issue list or PASS verdict."
+      },
+      {
+        "step": 5,
+        "id": "fix",
+        "agent": "fixer",
+        "model": "devstral-small-2",
+        "action": "Apply targeted fixes for every issue raised in step 4. Use patch-style edits. Do not refactor unrelated code. Mark each fix with the originating issue ID."
+      },
+      {
+        "step": 6,
+        "id": "re-run",
+        "agent": "orchestrator",
+        "model": "qwen3.6:35b-a3b",
+        "action": "Re-run build and tests after fixes. If CLEAN, proceed to final verdict. If still failing, increment iteration counter and return to step 4. If maxIterations reached, halt and surface to human."
+      },
+      {
+        "step": 7,
+        "id": "final-verdict",
+        "agent": "verifier",
+        "model": "deepseek-r1:70b",
+        "action": "Produce the final verification verdict: PASS, PASS_WITH_WARNINGS, or FAIL. Write 07-verify-report.md. PASS_WITH_WARNINGS must list each warning explicitly. FAIL must list blocking issues and recommended next actions."
+      }
+    ]
+  }
+}

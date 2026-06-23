@@ -1,0 +1,129 @@
+{
+  "version": "1.0.0",
+  "stacks": {
+    "dotnet": {
+      "id": "dotnet",
+      "name": ".NET / C#",
+      "markers": ["*.csproj", "*.sln"],
+      "buildCommand": "dotnet build",
+      "testCommand": "dotnet test",
+      "lintCommand": null,
+      "typecheckCommand": null,
+      "buildCheckFile": "*.csproj"
+    },
+    "java-maven": {
+      "id": "java-maven",
+      "name": "Java (Maven)",
+      "markers": ["pom.xml"],
+      "buildCommand": "mvn compile",
+      "testCommand": "mvn test",
+      "lintCommand": null,
+      "typecheckCommand": null,
+      "buildCheckFile": "pom.xml"
+    },
+    "java-gradle": {
+      "id": "java-gradle",
+      "name": "Java (Gradle)",
+      "markers": ["build.gradle", "build.gradle.kts"],
+      "buildCommand": "./gradlew build",
+      "testCommand": "./gradlew test",
+      "lintCommand": null,
+      "typecheckCommand": null,
+      "buildCheckFile": "build.gradle"
+    },
+    "node": {
+      "id": "node",
+      "name": "Node.js / JavaScript / TypeScript",
+      "markers": ["package.json"],
+      "buildCommand": "npm run build",
+      "testCommand": "npm test",
+      "lintCommand": "npm run lint",
+      "typecheckCommand": "npx tsc --noEmit",
+      "buildCheckFile": "package.json"
+    },
+    "python": {
+      "id": "python",
+      "name": "Python",
+      "markers": ["requirements.txt", "pyproject.toml", "setup.py", "setup.cfg"],
+      "buildCommand": null,
+      "testCommand": "python -m pytest",
+      "lintCommand": "python -m ruff check .",
+      "typecheckCommand": "python -m mypy .",
+      "buildCheckFile": "pyproject.toml"
+    },
+    "sql": {
+      "id": "sql",
+      "name": "SQL / PL/SQL",
+      "markers": ["*.sql", "*.pls", "*.pkb", "*.pks"],
+      "buildCommand": null,
+      "testCommand": null,
+      "lintCommand": null,
+      "typecheckCommand": null,
+      "buildCheckFile": null
+    },
+    "generic": {
+      "id": "generic",
+      "name": "Generic (no detected stack)",
+      "markers": [],
+      "buildCommand": null,
+      "testCommand": null,
+      "lintCommand": null,
+      "typecheckCommand": null,
+      "buildCheckFile": null
+    }
+  },
+  "protectedFiles": [
+    ".env",
+    ".env.*",
+    ".env.local",
+    ".env.production",
+    ".env.staging",
+    "*.pem",
+    "*.key",
+    "*.pfx",
+    "*.cer",
+    "*.p12",
+    "*.jks",
+    "secrets.*",
+    "appsettings.Production.json",
+    "appsettings.Staging.json",
+    "web.config",
+    "*.secret",
+    "id_rsa",
+    "id_ed25519",
+    ".ssh/",
+    "docker-compose.prod.yml",
+    "terraform.tfvars",
+    ".terraform/"
+  ],
+  "excludeDirs": [
+    "node_modules",
+    "dist",
+    "build",
+    "bin",
+    "obj",
+    ".git",
+    ".cache",
+    "coverage",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    "target",
+    ".gradle",
+    "out",
+    ".next",
+    ".nuxt"
+  ],
+  "safetyRules": {
+    "neverDeleteFiles": true,
+    "neverRunDestructiveCommands": true,
+    "neverInstallGlobalPackages": true,
+    "neverModifySecrets": true,
+    "neverModifyDeploymentCredentials": true,
+    "onlyRunCommandsWhenMarkerFilesExist": true,
+    "printSkipMessageWhenCommandNotAvailable": true,
+    "alwaysSaveLogsToDisk": true
+  },
+  "logDir": ".ai-workflows/logs",
+  "validationSummaryPath": ".ai-workflows/logs/validation-summary.md"
+}

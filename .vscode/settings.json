@@ -1,0 +1,65 @@
+{
+  "files.associations": {
+    "*.md": "markdown"
+  },
+  "editor.wordWrap": "on",
+  "editor.rulers": [120],
+  "[markdown]": {
+    "editor.wordWrap": "on",
+    "editor.quickSuggestions": {
+      "other": false,
+      "comments": false,
+      "strings": false
+    }
+  },
+  "continue.models": [
+    {
+      "title": "Orchestrator/Explorer",
+      "provider": "ollama",
+      "model": "qwen3.6:35b-a3b",
+      "apiBase": "http://localhost:11434"
+    },
+    {
+      "title": "Design/Verify",
+      "provider": "ollama",
+      "model": "deepseek-r1:70b",
+      "apiBase": "http://localhost:11434"
+    },
+    {
+      "title": "Spec/Tasks/Implement",
+      "provider": "ollama",
+      "model": "qwen3-coder-next",
+      "apiBase": "http://localhost:11434"
+    },
+    {
+      "title": "Test/Fix",
+      "provider": "ollama",
+      "model": "devstral-small-2",
+      "apiBase": "http://localhost:11434"
+    },
+    {
+      "title": "Archiver",
+      "provider": "ollama",
+      "model": "north-mini-code-1.0",
+      "apiBase": "http://localhost:11434"
+    },
+    {
+      "title": "Fallback",
+      "provider": "ollama",
+      "model": "qwen2.5-coder:32b",
+      "apiBase": "http://localhost:11434"
+    }
+  ],
+  "continue.systemMessage": "You are an expert software engineer operating inside an SDD (Spec-Driven Development) multi-agent workflow. All code changes must follow the specs in 03-spec.md and the design in 04-design.md. Never skip phases. Prefer patch-style changes. Never modify protected files (secrets, credentials, deployment configs). Always stay within maxFilesPerImplementationBatch=4 per task. If a task would exceed this limit, split it. The workflow config lives at .ai-workflows/config/workflow.json.",
+  "cline.apiProvider": "ollama",
+  "cline.ollamaBaseUrl": "http://localhost:11434",
+  "cline.model": "qwen3-coder-next",
+  "files.exclude": {
+    "**/.git": true,
+    ".ai-workflows/logs": false
+  },
+  "search.exclude": {
+    "node_modules": true,
+    ".ai-workflows/sdd/changes/**/[0-9][0-9]-*.md": false
+  }
+}

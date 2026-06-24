@@ -1,4 +1,6 @@
 {
+  "multi-agents.ollamaBaseUrl": "http://localhost:11434",
+  "multi-agents.workflowsDir": ".ai-workflows",
   "files.associations": {
     "*.md": "markdown"
   },

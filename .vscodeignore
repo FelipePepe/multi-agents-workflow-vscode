@@ -1,0 +1,12 @@
+src/**
+node_modules/**
+openspec/**
+tsconfig.json
+esbuild.js
+.gitignore
+.claude/**
+.vscode/**
+pnpm-lock.yaml
+pnpm-workspace.yaml
+package-lock.json
+dist/*.map

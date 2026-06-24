@@ -1,0 +1,138 @@
+{
+  "name": "multi-agents-workflow",
+  "displayName": "Multi-Agents Workflow",
+  "description": "Orchestrate multi-agent Claude Code workflows from VS Code",
+  "version": "0.1.1",
+  "publisher": "felipepepe",
+  "license": "MIT",
+  "packageManager": "pnpm@11.8.0",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other",
+    "AI"
+  ],
+  "keywords": [
+    "claude",
+    "ai",
+    "agents",
+    "workflow",
+    "automation"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "multi-agents.startWorkflow",
+        "title": "Start Agent Workflow",
+        "category": "Multi-Agents"
+      },
+      {
+        "command": "multi-agents.showPanel",
+        "title": "Show Agent Panel",
+        "category": "Multi-Agents"
+      },
+      {
+        "command": "multi-agents.stopAll",
+        "title": "Stop All Agents",
+        "category": "Multi-Agents"
+      },
+      {
+        "command": "multi-agents.initWorkspace",
+        "title": "Initialize Workspace",
+        "category": "Multi-Agents"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "multi-agents",
+          "title": "Multi-Agents",
+          "icon": "$(hubot)"
+        }
+      ]
+    },
+    "views": {
+      "multi-agents": [
+        {
+          "id": "multi-agents.chatView",
+          "name": "Chat",
+          "type": "webview"
+        },
+        {
+          "id": "multi-agents.workflowsView",
+          "name": "Workflows",
+          "type": "tree"
+        },
+        {
+          "id": "multi-agents.agentsView",
+          "name": "Active Agents",
+          "type": "tree"
+        },
+        {
+          "id": "multi-agents.settingsView",
+          "name": "Settings",
+          "type": "webview"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Multi-Agents Workflow",
+      "properties": {
+        "multi-agents.provider": {
+          "type": "string",
+          "enum": ["ollama", "vscode-lm"],
+          "default": "ollama",
+          "description": "LLM provider. 'ollama' uses a local Ollama instance. 'vscode-lm' uses any installed VS Code Language Model extension (e.g. GitHub Copilot)."
+        },
+        "multi-agents.ollamaBaseUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Ollama API base URL (e.g. http://localhost:11434). Changes take effect immediately."
+        },
+        "multi-agents.workflowsDir": {
+          "type": "string",
+          "default": ".ai-workflows",
+          "description": "Directory (relative to workspace root) where workflow definitions and SDD artifacts are stored."
+        },
+        "multi-agents.maxConcurrentAgents": {
+          "type": "number",
+          "default": 3,
+          "description": "Maximum number of agents running simultaneously."
+        },
+        "multi-agents.claudeCodePath": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Deprecated. Use multi-agents.ollamaBaseUrl instead.",
+          "deprecationMessage": "Deprecated: use multi-agents.ollamaBaseUrl"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "dev": "node esbuild.js --watch",
+    "build": "node esbuild.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "esbuild": "^0.21.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}

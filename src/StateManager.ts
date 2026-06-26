@@ -1,10 +1,6 @@
 import * as vscode from 'vscode';
+import { ALL_SDD_PHASES } from './types/index.js';
 import type { WorkflowState, SddPhase, PhaseStatus } from './types/index.js';
-
-const ALL_PHASES: SddPhase[] = [
-  'sdd-explore', 'sdd-propose', 'sdd-spec', 'sdd-design',
-  'sdd-tasks', 'sdd-apply', 'sdd-verify', 'sdd-archive',
-];
 
 export class StateManager {
   private readonly _onDidChangeState = new vscode.EventEmitter<string>();
@@ -35,7 +31,7 @@ export class StateManager {
     await vscode.workspace.fs.createDirectory(dir);
 
     const updated: WorkflowState = { ...state, updatedAt: new Date().toISOString() };
-    const data = Buffer.from(JSON.stringify(updated, null, 2)) as unknown as Uint8Array;
+    const data = new TextEncoder().encode(JSON.stringify(updated, null, 2));
 
     const tmpUri = vscode.Uri.joinPath(dir, 'state.json.tmp');
     const finalUri = this.stateUri(state.changeName);
@@ -56,7 +52,7 @@ export class StateManager {
   async create(changeName: string): Promise<WorkflowState> {
     const now = new Date().toISOString();
     const phases = Object.fromEntries(
-      ALL_PHASES.map((p) => [p, 'pending' as PhaseStatus]),
+      ALL_SDD_PHASES.map((p) => [p, 'pending' as PhaseStatus]),
     ) as Record<SddPhase, PhaseStatus>;
 
     const state: WorkflowState = {
@@ -119,7 +115,8 @@ export class StateManager {
   }
 
   private extractChangeName(uri: vscode.Uri): string | null {
-    const parts = uri.fsPath.split('/');
+    // uri.path always uses forward slashes on all platforms; fsPath is platform-specific
+    const parts = uri.path.split('/');
     const idx = parts.lastIndexOf('changes');
     return idx >= 0 ? (parts[idx + 1] ?? null) : null;
   }

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── vscode mock ───────────────────────────────────────────────────────────────
 
-const mockShowInputBox    = vi.hoisted(() => vi.fn<any, Promise<string | undefined>>());
+const mockShowInputBox    = vi.hoisted(() => vi.fn());
 const mockShowError       = vi.hoisted(() => vi.fn());
 const mockShowInfo        = vi.hoisted(() => vi.fn());
 
@@ -65,8 +65,8 @@ describe('startWorkflow', () => {
   });
 
   it('showInputBox validateInput rejects non-kebab-case names', async () => {
-    mockShowInputBox.mockImplementation(async (opts: { validateInput?: (v: string) => string | null }) => {
-      const err = opts.validateInput?.('My Feature!');
+    mockShowInputBox.mockImplementation(async (opts: unknown) => {
+      const err = (opts as { validateInput?: (v: string) => string | null }).validateInput?.('My Feature!');
       expect(err).toBeTruthy();
       return undefined;
     });
@@ -76,8 +76,8 @@ describe('startWorkflow', () => {
   });
 
   it('showInputBox validateInput accepts valid kebab-case', async () => {
-    mockShowInputBox.mockImplementation(async (opts: { validateInput?: (v: string) => string | null }) => {
-      const err = opts.validateInput?.('valid-name-123');
+    mockShowInputBox.mockImplementation(async (opts: unknown) => {
+      const err = (opts as { validateInput?: (v: string) => string | null }).validateInput?.('valid-name-123');
       expect(err).toBeNull();
       return undefined;
     });
@@ -86,8 +86,8 @@ describe('startWorkflow', () => {
   });
 
   it('showInputBox validateInput rejects names longer than 64 chars', async () => {
-    mockShowInputBox.mockImplementation(async (opts: { validateInput?: (v: string) => string | null }) => {
-      const err = opts.validateInput?.('a'.repeat(65));
+    mockShowInputBox.mockImplementation(async (opts: unknown) => {
+      const err = (opts as { validateInput?: (v: string) => string | null }).validateInput?.('a'.repeat(65));
       expect(err).toBeTruthy();
       return undefined;
     });
@@ -96,8 +96,8 @@ describe('startWorkflow', () => {
   });
 
   it('showInputBox validateInput accepts names exactly 64 chars', async () => {
-    mockShowInputBox.mockImplementation(async (opts: { validateInput?: (v: string) => string | null }) => {
-      const err = opts.validateInput?.('a'.repeat(64));
+    mockShowInputBox.mockImplementation(async (opts: unknown) => {
+      const err = (opts as { validateInput?: (v: string) => string | null }).validateInput?.('a'.repeat(64));
       expect(err).toBeNull();
       return undefined;
     });

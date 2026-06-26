@@ -33,5 +33,7 @@ export async function startWorkflow(
   await stateManager.create(name);
   workflowsProvider.refresh();
 
-  void orchestrator.run(name);
+  orchestrator.run(name).catch((err: unknown) => {
+    vscode.window.showErrorMessage(`Multi-Agents: Workflow failed — ${String(err)}`);
+  });
 }

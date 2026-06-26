@@ -4,12 +4,12 @@ import type { WorkflowState } from './types/index.js';
 // ── vscode mock ───────────────────────────────────────────────────────────────
 
 const mockFs = vi.hoisted(() => ({
-  readFile: vi.fn<[unknown], Promise<Uint8Array>>(),
-  writeFile: vi.fn<[unknown, Uint8Array], Promise<void>>(),
-  createDirectory: vi.fn<[unknown], Promise<void>>(),
-  rename: vi.fn<[unknown, unknown, unknown], Promise<void>>(),
-  readDirectory: vi.fn<[unknown], Promise<[string, number][]>>(),
-  stat: vi.fn<[unknown], Promise<unknown>>(),
+  readFile:        vi.fn(),
+  writeFile:       vi.fn(),
+  createDirectory: vi.fn(),
+  rename:          vi.fn(),
+  readDirectory:   vi.fn(),
+  stat:            vi.fn(),
 }));
 
 vi.mock('vscode', () => {
@@ -190,8 +190,9 @@ describe('StateManager', () => {
       const newer = { ...buildState('newer'), updatedAt: '2026-06-24T10:00:00Z' };
 
       mockFs.readDirectory.mockResolvedValue([['older', 2], ['newer', 2]]);
-      mockFs.readFile.mockImplementation((uri: { fsPath: string }) => {
-        if (uri.fsPath.includes('older')) return Promise.resolve(Buffer.from(JSON.stringify(older)) as unknown as Uint8Array);
+      mockFs.readFile.mockImplementation((uri: unknown) => {
+        const p = (uri as { fsPath: string }).fsPath;
+        if (p.includes('older')) return Promise.resolve(Buffer.from(JSON.stringify(older)) as unknown as Uint8Array);
         return Promise.resolve(Buffer.from(JSON.stringify(newer)) as unknown as Uint8Array);
       });
 
@@ -204,8 +205,9 @@ describe('StateManager', () => {
 
     it('skips entries whose state.json cannot be read', async () => {
       mockFs.readDirectory.mockResolvedValue([['good', 2], ['bad', 2]]);
-      mockFs.readFile.mockImplementation((uri: { fsPath: string }) => {
-        if (uri.fsPath.includes('good'))
+      mockFs.readFile.mockImplementation((uri: unknown) => {
+        const p = (uri as { fsPath: string }).fsPath;
+        if (p.includes('good'))
           return Promise.resolve(Buffer.from(JSON.stringify(buildState('good'))) as unknown as Uint8Array);
         return Promise.reject(fileNotFoundError());
       });

@@ -1,11 +1,7 @@
 import * as vscode from 'vscode';
-import type { PhaseStatus, SddPhase } from '../types/index.js';
+import { ALL_SDD_PHASES } from '../types/index.js';
+import type { PhaseStatus } from '../types/index.js';
 import type { StateManager } from '../StateManager.js';
-
-const SDD_PHASES: SddPhase[] = [
-  'sdd-explore', 'sdd-propose', 'sdd-spec', 'sdd-design',
-  'sdd-tasks', 'sdd-apply', 'sdd-verify', 'sdd-archive',
-];
 
 const PHASE_ICON: Record<PhaseStatus, vscode.ThemeIcon> = {
   'pending':     new vscode.ThemeIcon('circle-outline'),
@@ -58,7 +54,7 @@ export class WorkflowsProvider implements vscode.TreeDataProvider<WorkflowItem> 
       const state = await this.stateManager.read(element.changeName);
       if (!state) return [];
 
-      return SDD_PHASES.map((phase) => {
+      return ALL_SDD_PHASES.map((phase) => {
         const status = state.phases[phase] ?? 'pending';
         return new WorkflowItem(
           phase,

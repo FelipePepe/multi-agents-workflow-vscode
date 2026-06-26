@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { SddPhase, WorkflowConfig, WorkflowPhaseConfig } from './types/index.js';
+import type { SddPhase, WorkflowConfig, WorkflowPhaseConfig, PhaseStatus } from './types/index.js';
 import type { StateManager } from './StateManager.js';
 import type { AgentRunner } from './agents/AgentRunner.js';
 
@@ -100,48 +100,43 @@ export class WorkflowOrchestrator {
     await this.runPhase(changeName, phase, notify);
   }
 
-  private runPhase(
+  private async runPhase(
     changeName: string,
     phase: WorkflowPhaseConfig,
     notify?: PhaseNotify,
   ): Promise<boolean> {
-    return new Promise((resolve) => {
-      void this.stateManager.read(changeName).then(async (state) => {
-        if (!state) { resolve(false); return; }
+    const state = await this.stateManager.read(changeName);
+    if (!state) return false;
 
-        state.phases[phase.id as SddPhase] = 'in-progress';
-        state.currentPhase = phase.id as SddPhase;
-        await this.stateManager.write(state);
-        notify?.(phase.id as SddPhase, 'start');
+    const phaseId = phase.id as SddPhase;
+    state.phases[phaseId] = 'in-progress';
+    state.currentPhase = phaseId;
+    await this.stateManager.write(state);
+    notify?.(phaseId, 'start');
 
-        void this.runner.run({
-          changeName,
-          role: phase.agent,
-          artifactPaths: phase.artifact.reads,
-          onChunk: () => undefined,
-          onDone: () => {
-            void this.stateManager.read(changeName).then(async (s) => {
-              if (s) {
-                s.phases[phase.id as SddPhase] = 'complete';
-                await this.stateManager.write(s);
-              }
-              notify?.(phase.id as SddPhase, 'done');
-              resolve(true);
-            });
-          },
-          onError: (_err) => {
-            void this.stateManager.read(changeName).then(async (s) => {
-              if (s) {
-                s.phases[phase.id as SddPhase] = 'fail';
-                await this.stateManager.write(s);
-              }
-              notify?.(phase.id as SddPhase, 'fail');
-              resolve(false);
-            });
-          },
-        });
-      });
+    // runner.run() always resolves (never rejects) — onDone or onError fires before resolution.
+    let errored = false;
+    await this.runner.run({
+      changeName,
+      role: phase.agent,
+      artifactPaths: phase.artifact.reads,
+      onChunk: () => undefined,
+      onDone:  () => undefined,
+      onError: () => { errored = true; },
     });
+
+    const finalStatus: PhaseStatus = this.stopped ? 'in-progress' : errored ? 'fail' : 'complete';
+    const current = await this.stateManager.read(changeName);
+    if (current) {
+      current.phases[phaseId] = finalStatus;
+      await this.stateManager.write(current);
+    }
+
+    if (!this.stopped) {
+      notify?.(phaseId, errored ? 'fail' : 'done');
+    }
+
+    return !errored && !this.stopped;
   }
 
   private async loadConfig(): Promise<WorkflowConfig | null> {

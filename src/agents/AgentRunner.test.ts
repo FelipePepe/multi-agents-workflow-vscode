@@ -5,9 +5,9 @@ import type { LlmProvider } from './LlmProvider.js';
 // ── hoisted mocks ─────────────────────────────────────────────────────────────
 
 const mockFs = vi.hoisted(() => ({
-  readFile: vi.fn<any, Promise<Uint8Array>>(),
-  writeFile: vi.fn<any, Promise<void>>(),
-  createDirectory: vi.fn<any, Promise<void>>(),
+  readFile:        vi.fn(),
+  writeFile:       vi.fn(),
+  createDirectory: vi.fn(),
 }));
 
 const mockGetConfig  = vi.hoisted(() => vi.fn());
@@ -99,9 +99,10 @@ describe('AgentRunner', () => {
       },
     });
 
-    mockFs.readFile.mockImplementation((uri: { fsPath: string }) => {
-      if (uri.fsPath.includes('/agents/')) return Promise.resolve(enc(AGENT_MD));
-      if (uri.fsPath.includes('models.json')) return Promise.resolve(enc(MODELS_JSON));
+    mockFs.readFile.mockImplementation((uri: unknown) => {
+      const p = (uri as { fsPath: string }).fsPath;
+      if (p.includes('/agents/')) return Promise.resolve(enc(AGENT_MD));
+      if (p.includes('models.json')) return Promise.resolve(enc(MODELS_JSON));
       return Promise.reject(Object.assign(new Error('File not found'), { code: 'FileNotFound' }));
     });
 
@@ -137,8 +138,9 @@ describe('AgentRunner', () => {
   // ── 3. fallback model ───────────────────────────────────────────────────────
 
   it('falls back to defaultModel when models.json is missing', async () => {
-    mockFs.readFile.mockImplementation((uri: { fsPath: string }) => {
-      if (uri.fsPath.includes('/agents/')) return Promise.resolve(enc(AGENT_MD));
+    mockFs.readFile.mockImplementation((uri: unknown) => {
+      const p = (uri as { fsPath: string }).fsPath;
+      if (p.includes('/agents/')) return Promise.resolve(enc(AGENT_MD));
       return Promise.reject(new Error('not found'));
     });
 
@@ -262,10 +264,11 @@ describe('AgentRunner', () => {
   // ── 11. artifact paths prepended to user message ────────────────────────────
 
   it('prepends artifact file contents to the user message', async () => {
-    mockFs.readFile.mockImplementation((uri: { fsPath: string }) => {
-      if (uri.fsPath.includes('/agents/')) return Promise.resolve(enc(AGENT_MD));
-      if (uri.fsPath.includes('models.json')) return Promise.resolve(enc(MODELS_JSON));
-      if (uri.fsPath.includes('exploration.md')) return Promise.resolve(enc('# Exploration result'));
+    mockFs.readFile.mockImplementation((uri: unknown) => {
+      const p = (uri as { fsPath: string }).fsPath;
+      if (p.includes('/agents/')) return Promise.resolve(enc(AGENT_MD));
+      if (p.includes('models.json')) return Promise.resolve(enc(MODELS_JSON));
+      if (p.includes('exploration.md')) return Promise.resolve(enc('# Exploration result'));
       return Promise.reject(new Error('not found'));
     });
 

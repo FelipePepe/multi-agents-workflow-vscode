@@ -153,7 +153,7 @@ export class AgentRunner {
       try {
         await vscode.workspace.fs.writeFile(
           artifactUri,
-          Buffer.from(content) as unknown as Uint8Array,
+          new TextEncoder().encode(content),
         );
       } catch (err) {
         console.error('[AgentRunner] Failed to write artifact:', err);

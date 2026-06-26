@@ -21,7 +21,7 @@ export class OllamaProvider implements LlmProvider {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model, messages, stream: true }),
-        signal,
+        signal: signal ?? null,
       });
     } catch (err) {
       if (signal?.aborted) { onDone(); return; }

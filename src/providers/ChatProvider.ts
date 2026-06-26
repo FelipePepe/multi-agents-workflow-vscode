@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ALL_SDD_PHASES } from '../types/index.js';
 import type { SddPhase, PhaseStatus } from '../types/index.js';
 import type { StateManager } from '../StateManager.js';
 import type { WorkflowOrchestrator } from '../WorkflowOrchestrator.js';
@@ -16,7 +17,7 @@ const PHASE_ARTIFACT: Record<SddPhase, string> = {
   'sdd-archive':  '08-archive-report.md',
 };
 
-const ALL_PHASES = Object.keys(PHASE_ARTIFACT) as SddPhase[];
+const ALL_PHASES = ALL_SDD_PHASES;
 
 function phaseIcon(status: PhaseStatus): string {
   switch (status) {

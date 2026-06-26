@@ -33,7 +33,8 @@ type ToWebview =
   | { type: 'message'; role: 'user' | 'bot' | 'error'; text: string }
   | { type: 'stream-start'; label: string }
   | { type: 'stream-chunk'; text: string }
-  | { type: 'stream-end' };
+  | { type: 'stream-end' }
+  | { type: 'clear' };
 
 // ── ChatProvider ──────────────────────────────────────────────────────────────
 
@@ -76,17 +77,22 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     const [cmd, ...args] = input.split(/\s+/);
 
     switch (cmd) {
-      case '/help':   this.cmdHelp();                                 break;
-      case '/init':   await this.cmdInit();                           break;
-      case '/panel':  this.cmdPanel();                                break;
-      case '/stop':   this.cmdStop();                                 break;
-      case '/start':  await this.cmdStart(args[0]);                   break;
-      case '/list':   await this.cmdList();                           break;
-      case '/status': await this.cmdStatus(args[0]);                  break;
-      case '/resume': await this.cmdResume(args[0]);                  break;
-      case '/retry':  await this.cmdRetry(args[0], args[1] as SddPhase | undefined); break;
-      case '/open':   await this.cmdOpen(args[0], args[1] as SddPhase | undefined);  break;
-      case '/delete': await this.cmdDelete(args[0]);                  break;
+      case '/help':     this.cmdHelp();                                                          break;
+      case '/scaffold': await this.cmdScaffold();                                                break;
+      case '/panel':    this.cmdPanel();                                                         break;
+      case '/abort':    this.cmdAbort();                                                         break;
+      case '/change':   await this.cmdChange(args[0]);                                           break;
+      case '/changes':  await this.cmdChanges();                                                 break;
+      case '/phases':   await this.cmdPhases(args[0]);                                           break;
+      case '/continue': await this.cmdContinue(args[0]);                                         break;
+      case '/rerun':    await this.cmdRerun(args[0], args[1] as SddPhase | undefined);           break;
+      case '/run':      await this.cmdRun(args[0], args[1] as SddPhase | undefined, args[2] as SddPhase | undefined); break;
+      case '/artifact': await this.cmdArtifact(args[0], args[1] as SddPhase | undefined);       break;
+      case '/logs':     await this.cmdLogs(args[0], args[1] as SddPhase | undefined);           break;
+      case '/drop':     await this.cmdDrop(args[0]);                                             break;
+      case '/ping':     await this.cmdPing();                                                    break;
+      case '/config':   this.cmdConfig();                                                        break;
+      case '/clear':    this.cmdClear();                                                         break;
       default:
         this.post({ type: 'message', role: 'error',
           text: `Unknown command: ${cmd ?? input}\nType /help for a list.` });
@@ -97,19 +103,32 @@ export class ChatProvider implements vscode.WebviewViewProvider {
 
   private cmdHelp(): void {
     this.post({ type: 'message', role: 'bot', text: [
-      'Available commands:',
+      'Workflow commands:',
       '',
-      '  /start <name>            Start a new SDD workflow',
-      '  /stop                    Abort all running agents',
-      '  /list                    List all workflows',
-      '  /status <name>           Show full phase breakdown',
-      '  /resume <name>           Resume from first incomplete phase',
-      '  /retry  <name> <phase>   Re-run a single phase',
-      '  /open   <name> <phase>   Open the artifact in the editor',
-      '  /delete <name>           Delete a workflow and its artifacts',
-      '  /init                    Scaffold .ai-workflows/ in the workspace',
-      '  /panel                   Reveal the sidebar',
-      '  /help                    Show this message',
+      '  /change   <name>              Start a new SDD change',
+      '  /continue <name>              Resume from first incomplete phase',
+      '  /rerun    <name> <phase>      Re-run a single phase',
+      '  /run      <name> <from> <to>  Run a phase range',
+      '  /abort                        Stop all running agents',
+      '',
+      'Inspection commands:',
+      '',
+      '  /changes                      List all changes',
+      '  /phases   <name>              Show full phase breakdown',
+      '  /logs     <name> [phase]      Show artifact content inline',
+      '  /artifact <name> <phase>      Open artifact in editor',
+      '',
+      'Maintenance commands:',
+      '',
+      '  /drop     <name>              Delete a change and its artifacts',
+      '  /scaffold                     Initialize .ai-workflows/ in workspace',
+      '',
+      'Diagnostic commands:',
+      '',
+      '  /ping                         Check LLM provider connectivity',
+      '  /config                       Show current extension settings',
+      '  /clear                        Clear this chat',
+      '  /panel                        Reveal the sidebar',
       '',
       'Phases:',
       '  sdd-explore  sdd-propose  sdd-spec   sdd-design',
@@ -117,7 +136,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     ].join('\n') });
   }
 
-  private async cmdInit(): Promise<void> {
+  private async cmdScaffold(): Promise<void> {
     await vscode.commands.executeCommand('multi-agents.initWorkspace');
   }
 
@@ -125,20 +144,69 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     void vscode.commands.executeCommand('workbench.view.extension.multi-agents');
   }
 
-  private cmdStop(): void {
+  private cmdAbort(): void {
     this.stopAll();
     this.post({ type: 'message', role: 'bot', text: 'All agents stopped.' });
   }
 
-  private async cmdStart(name: string | undefined): Promise<void> {
+  private cmdClear(): void {
+    this.post({ type: 'clear' });
+  }
+
+  private cmdConfig(): void {
+    const cfg = vscode.workspace.getConfiguration('multi-agents');
+    this.post({ type: 'message', role: 'bot', text: [
+      'Current configuration:',
+      '',
+      `  provider:            ${cfg.get<string>('provider', 'ollama')}`,
+      `  ollamaBaseUrl:       ${cfg.get<string>('ollamaBaseUrl', 'http://localhost:11434')}`,
+      `  workflowsDir:        ${cfg.get<string>('workflowsDir', '.ai-workflows')}`,
+      `  maxConcurrentAgents: ${cfg.get<number>('maxConcurrentAgents', 3)}`,
+    ].join('\n') });
+  }
+
+  private async cmdPing(): Promise<void> {
+    const cfg = vscode.workspace.getConfiguration('multi-agents');
+    const provider = cfg.get<string>('provider', 'ollama');
+
+    if (provider === 'vscode-lm') {
+      try {
+        const models = await vscode.lm.selectChatModels({});
+        const names = models.map((m) => `  • ${m.id}`).join('\n') || '  (none available)';
+        this.post({ type: 'message', role: 'bot',
+          text: `Provider: vscode-lm\n\nAvailable models:\n${names}` });
+      } catch (err) {
+        this.post({ type: 'message', role: 'error',
+          text: `Failed to query VS Code LM: ${String(err)}` });
+      }
+      return;
+    }
+
+    const baseUrl = cfg.get<string>('ollamaBaseUrl', 'http://localhost:11434');
+    this.post({ type: 'message', role: 'bot', text: `Pinging ${baseUrl} …` });
+
+    try {
+      const res = await fetch(`${baseUrl}/api/tags`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as { models: Array<{ name: string }> };
+      const names = data.models.map((m) => `  • ${m.name}`).join('\n') || '  (no models installed)';
+      this.post({ type: 'message', role: 'bot',
+        text: `✓ Ollama reachable at ${baseUrl}\n\nModels:\n${names}` });
+    } catch (err) {
+      this.post({ type: 'message', role: 'error',
+        text: `✗ Cannot reach Ollama at ${baseUrl}\n${String(err)}` });
+    }
+  }
+
+  private async cmdChange(name: string | undefined): Promise<void> {
     if (!name) {
-      this.post({ type: 'message', role: 'error', text: 'Usage: /start <name>' });
+      this.post({ type: 'message', role: 'error', text: 'Usage: /change <name>' });
       return;
     }
 
     if (await this.stateManager.exists(name)) {
       const choice = await vscode.window.showWarningMessage(
-        `Workflow "${name}" already exists. Overwrite it?`,
+        `Change "${name}" already exists. Overwrite it?`,
         { modal: true },
         'Overwrite',
       );
@@ -150,23 +218,23 @@ export class ChatProvider implements vscode.WebviewViewProvider {
 
     await this.stateManager.create(name);
 
-    this.post({ type: 'stream-start', label: `Running workflow: ${name}` });
+    this.post({ type: 'stream-start', label: `Running change: ${name}` });
     try {
       await this.orchestrator.run(name, (phase, event) => {
         const icon = event === 'start' ? '▸' : event === 'done' ? '✓' : '✗';
         this.post({ type: 'stream-chunk', text: `${icon} ${phase}\n` });
       });
-      this.post({ type: 'stream-chunk', text: '\nWorkflow complete.' });
+      this.post({ type: 'stream-chunk', text: '\nChange complete.' });
     } catch (err) {
       this.post({ type: 'stream-chunk', text: `\nError: ${String(err)}` });
     }
     this.post({ type: 'stream-end' });
   }
 
-  private async cmdList(): Promise<void> {
+  private async cmdChanges(): Promise<void> {
     const states = await this.stateManager.list();
     if (!states.length) {
-      this.post({ type: 'message', role: 'bot', text: 'No workflows found.' });
+      this.post({ type: 'message', role: 'bot', text: 'No changes found.' });
       return;
     }
 
@@ -182,22 +250,22 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  private async cmdStatus(name: string | undefined): Promise<void> {
+  private async cmdPhases(name: string | undefined): Promise<void> {
     if (!name) {
-      this.post({ type: 'message', role: 'error', text: 'Usage: /status <name>' });
+      this.post({ type: 'message', role: 'error', text: 'Usage: /phases <name>' });
       return;
     }
 
     const state = await this.stateManager.read(name);
     if (!state) {
-      this.post({ type: 'message', role: 'error', text: `Workflow "${name}" not found.` });
+      this.post({ type: 'message', role: 'error', text: `Change "${name}" not found.` });
       return;
     }
 
     const lines = [
-      `Workflow: ${state.changeName}`,
-      `Created:  ${state.createdAt.slice(0, 19).replace('T', ' ')}`,
-      `Updated:  ${state.updatedAt.slice(0, 19).replace('T', ' ')}`,
+      `Change:  ${state.changeName}`,
+      `Created: ${state.createdAt.slice(0, 19).replace('T', ' ')}`,
+      `Updated: ${state.updatedAt.slice(0, 19).replace('T', ' ')}`,
       '',
       ...ALL_PHASES.map((p) => {
         const status = state.phases[p];
@@ -213,19 +281,19 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     this.post({ type: 'message', role: 'bot', text: lines.join('\n') });
   }
 
-  private async cmdResume(name: string | undefined): Promise<void> {
+  private async cmdContinue(name: string | undefined): Promise<void> {
     if (!name) {
-      this.post({ type: 'message', role: 'error', text: 'Usage: /resume <name>' });
+      this.post({ type: 'message', role: 'error', text: 'Usage: /continue <name>' });
       return;
     }
 
     const state = await this.stateManager.read(name);
     if (!state) {
-      this.post({ type: 'message', role: 'error', text: `Workflow "${name}" not found.` });
+      this.post({ type: 'message', role: 'error', text: `Change "${name}" not found.` });
       return;
     }
 
-    this.post({ type: 'stream-start', label: `Resuming: ${name}` });
+    this.post({ type: 'stream-start', label: `Continuing: ${name}` });
     try {
       await this.orchestrator.resume(name, (phase, event) => {
         const icon = event === 'start' ? '▸' : event === 'done' ? '✓' : '✗';
@@ -238,9 +306,9 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     this.post({ type: 'stream-end' });
   }
 
-  private async cmdRetry(name: string | undefined, phase: SddPhase | undefined): Promise<void> {
+  private async cmdRerun(name: string | undefined, phase: SddPhase | undefined): Promise<void> {
     if (!name || !phase) {
-      this.post({ type: 'message', role: 'error', text: 'Usage: /retry <name> <phase>' });
+      this.post({ type: 'message', role: 'error', text: 'Usage: /rerun <name> <phase>' });
       return;
     }
 
@@ -250,7 +318,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    this.post({ type: 'stream-start', label: `Retrying ${phase} in: ${name}` });
+    this.post({ type: 'stream-start', label: `Rerunning ${phase} in: ${name}` });
     try {
       await this.orchestrator.runSinglePhase(name, phase, (p, event) => {
         const icon = event === 'start' ? '▸' : event === 'done' ? '✓' : '✗';
@@ -263,9 +331,38 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     this.post({ type: 'stream-end' });
   }
 
-  private async cmdOpen(name: string | undefined, phase: SddPhase | undefined): Promise<void> {
+  private async cmdRun(
+    name: string | undefined,
+    from: SddPhase | undefined,
+    to: SddPhase | undefined,
+  ): Promise<void> {
+    if (!name || !from || !to) {
+      this.post({ type: 'message', role: 'error', text: 'Usage: /run <name> <from-phase> <to-phase>' });
+      return;
+    }
+
+    if (!ALL_PHASES.includes(from) || !ALL_PHASES.includes(to)) {
+      this.post({ type: 'message', role: 'error',
+        text: `Invalid phase.\nValid phases: ${ALL_PHASES.join(', ')}` });
+      return;
+    }
+
+    this.post({ type: 'stream-start', label: `Running ${from} → ${to} in: ${name}` });
+    try {
+      await this.orchestrator.runRange(name, from, to, (phase, event) => {
+        const icon = event === 'start' ? '▸' : event === 'done' ? '✓' : '✗';
+        this.post({ type: 'stream-chunk', text: `${icon} ${phase}\n` });
+      });
+      this.post({ type: 'stream-chunk', text: '\nDone.' });
+    } catch (err) {
+      this.post({ type: 'stream-chunk', text: `\nError: ${String(err)}` });
+    }
+    this.post({ type: 'stream-end' });
+  }
+
+  private async cmdArtifact(name: string | undefined, phase: SddPhase | undefined): Promise<void> {
     if (!name || !phase) {
-      this.post({ type: 'message', role: 'error', text: 'Usage: /open <name> <phase>' });
+      this.post({ type: 'message', role: 'error', text: 'Usage: /artifact <name> <phase>' });
       return;
     }
 
@@ -288,18 +385,65 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async cmdDelete(name: string | undefined): Promise<void> {
+  private async cmdLogs(name: string | undefined, phase: SddPhase | undefined): Promise<void> {
     if (!name) {
-      this.post({ type: 'message', role: 'error', text: 'Usage: /delete <name>' });
+      this.post({ type: 'message', role: 'error', text: 'Usage: /logs <name> [phase]' });
+      return;
+    }
+
+    const state = await this.stateManager.read(name);
+    if (!state) {
+      this.post({ type: 'message', role: 'error', text: `Change "${name}" not found.` });
+      return;
+    }
+
+    if (!phase) {
+      const available = ALL_PHASES
+        .filter((p) => state.phases[p] !== 'pending')
+        .map((p) => `  ${phaseIcon(state.phases[p])} ${p}  →  ${PHASE_ARTIFACT[p]}`)
+        .join('\n');
+      this.post({ type: 'message', role: 'bot',
+        text: `Artifacts for "${name}":\n${available || '  (none yet)'}\n\nUsage: /logs ${name} <phase>` });
+      return;
+    }
+
+    const file = PHASE_ARTIFACT[phase];
+    if (!file) {
+      this.post({ type: 'message', role: 'error',
+        text: `Unknown phase: ${phase}\nValid phases: ${ALL_PHASES.join(', ')}` });
+      return;
+    }
+
+    const uri = vscode.Uri.joinPath(
+      this.workspaceRoot, this.workflowsDir, 'sdd', 'changes', name, file,
+    );
+
+    try {
+      const bytes = await vscode.workspace.fs.readFile(uri);
+      const content = Buffer.from(bytes).toString('utf8');
+      const preview = content.length > 2000
+        ? `${content.slice(0, 2000)}\n\n… (truncated — use /artifact ${name} ${phase} to open full file)`
+        : content;
+      this.post({ type: 'stream-start', label: `${phase}  →  ${file}` });
+      this.post({ type: 'stream-chunk', text: preview });
+      this.post({ type: 'stream-end' });
+    } catch {
+      this.post({ type: 'message', role: 'error', text: `Artifact not found: ${file}` });
+    }
+  }
+
+  private async cmdDrop(name: string | undefined): Promise<void> {
+    if (!name) {
+      this.post({ type: 'message', role: 'error', text: 'Usage: /drop <name>' });
       return;
     }
 
     const choice = await vscode.window.showWarningMessage(
-      `Delete workflow "${name}" and all its artifacts?`,
+      `Drop change "${name}" and all its artifacts?`,
       { modal: true },
-      'Delete',
+      'Drop',
     );
-    if (choice !== 'Delete') {
+    if (choice !== 'Drop') {
       this.post({ type: 'message', role: 'bot', text: 'Cancelled.' });
       return;
     }
@@ -307,9 +451,9 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     try {
       await this.stateManager.delete(name);
       this.refresh();
-      this.post({ type: 'message', role: 'bot', text: `Deleted workflow "${name}".` });
+      this.post({ type: 'message', role: 'bot', text: `Dropped change "${name}".` });
     } catch (err) {
-      this.post({ type: 'message', role: 'error', text: `Failed to delete: ${String(err)}` });
+      this.post({ type: 'message', role: 'error', text: `Failed to drop: ${String(err)}` });
     }
   }
 
@@ -453,7 +597,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
 <body>
   <div id="messages"></div>
   <div id="input-row">
-    <input id="input" type="text" placeholder="/help  ·  /start <name>  ·  /list"
+    <input id="input" type="text" placeholder="/help  ·  /change <name>  ·  /ping"
       autocomplete="off" spellcheck="false" />
     <button id="send">↵</button>
   </div>
@@ -500,7 +644,11 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     inputEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
 
     window.addEventListener('message', ({ data: msg }) => {
-      if (msg.type === 'message') {
+      if (msg.type === 'clear') {
+        msgList.innerHTML = '';
+        setBusy(false);
+
+      } else if (msg.type === 'message') {
         addMsg(msg.role, msg.text);
         setBusy(false);
 
@@ -533,7 +681,6 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       }
     });
 
-    // Focus input on load
     inputEl.focus();
   </script>
 </body>

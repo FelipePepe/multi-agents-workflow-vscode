@@ -59,6 +59,30 @@ export class WorkflowOrchestrator {
     }
   }
 
+  /** Run a contiguous range of phases [from, to] inclusive. */
+  async runRange(changeName: string, from: SddPhase, to: SddPhase, notify?: PhaseNotify): Promise<void> {
+    this.stopped = false;
+    const config = await this.loadConfig();
+    if (!config) return;
+
+    const phases = config.phases;
+    const fromIdx = phases.findIndex((p) => p.id === from);
+    const toIdx   = phases.findIndex((p) => p.id === to);
+
+    if (fromIdx === -1 || toIdx === -1 || fromIdx > toIdx) {
+      vscode.window.showErrorMessage(
+        `Multi-Agents: Invalid phase range "${from}" → "${to}".`,
+      );
+      return;
+    }
+
+    for (const phase of phases.slice(fromIdx, toIdx + 1)) {
+      if (this.stopped) break;
+      const advanced = await this.runPhase(changeName, phase, notify);
+      if (!advanced || this.stopped) break;
+    }
+  }
+
   /** Re-run a single phase regardless of its current status. */
   async runSinglePhase(changeName: string, phaseId: SddPhase, notify?: PhaseNotify): Promise<void> {
     this.stopped = false;

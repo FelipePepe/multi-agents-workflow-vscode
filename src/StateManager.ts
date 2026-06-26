@@ -21,7 +21,9 @@ export class StateManager {
     try {
       const bytes = await vscode.workspace.fs.readFile(this.stateUri(changeName));
       return JSON.parse(Buffer.from(bytes).toString('utf8')) as WorkflowState;
-    } catch {
+    } catch (err) {
+      if (err instanceof vscode.FileSystemError && err.code === 'FileNotFound') return null;
+      console.error('[StateManager] read failed:', err);
       return null;
     }
   }
@@ -37,14 +39,21 @@ export class StateManager {
     const finalUri = this.stateUri(state.changeName);
 
     await vscode.workspace.fs.writeFile(tmpUri, data);
-    await vscode.workspace.fs.rename(tmpUri, finalUri, { overwrite: true });
+    try {
+      await vscode.workspace.fs.rename(tmpUri, finalUri, { overwrite: true });
+    } catch (err) {
+      await vscode.workspace.fs.delete(tmpUri).catch(() => undefined);
+      throw err;
+    }
   }
 
   async exists(changeName: string): Promise<boolean> {
     try {
       await vscode.workspace.fs.stat(this.stateUri(changeName));
       return true;
-    } catch {
+    } catch (err) {
+      if (err instanceof vscode.FileSystemError && err.code === 'FileNotFound') return false;
+      console.error('[StateManager] exists check failed:', err);
       return false;
     }
   }
@@ -77,7 +86,9 @@ export class StateManager {
       return entries
         .filter(([, type]) => type === vscode.FileType.Directory)
         .map(([name]) => name);
-    } catch {
+    } catch (err) {
+      if (err instanceof vscode.FileSystemError && err.code === 'FileNotFound') return [];
+      console.error('[StateManager] listChanges failed:', err);
       return [];
     }
   }
@@ -90,6 +101,7 @@ export class StateManager {
   }
 
   async delete(changeName: string): Promise<void> {
+    StateManager.validateChangeName(changeName);
     await vscode.workspace.fs.delete(
       vscode.Uri.joinPath(this.changesRoot, changeName),
       { recursive: true },
@@ -121,7 +133,14 @@ export class StateManager {
     return idx >= 0 ? (parts[idx + 1] ?? null) : null;
   }
 
+  private static validateChangeName(name: string): void {
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name) || name.length > 64) {
+      throw new Error(`Invalid change name "${name}": use kebab-case, max 64 chars.`);
+    }
+  }
+
   private changeDir(changeName: string): vscode.Uri {
+    StateManager.validateChangeName(changeName);
     return vscode.Uri.joinPath(this.changesRoot, changeName);
   }
 

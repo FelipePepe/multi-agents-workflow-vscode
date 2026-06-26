@@ -3,6 +3,11 @@ import type { AgentRole, AgentRunOptions, ModelsConfig } from '../types/index.js
 import type { LlmMessage, LlmProvider } from './LlmProvider.js';
 import { AgentRegistry } from './AgentRegistry.js';
 
+const VALID_ROLES: ReadonlySet<string> = new Set<AgentRole>([
+  'orchestrator', 'explorer', 'proposal', 'spec', 'design', 'tasks',
+  'implementer', 'tester', 'verifier', 'fixer', 'archiver',
+]);
+
 const ROLE_ARTIFACT: Record<AgentRole, string> = {
   orchestrator: 'orchestrator-log.md',
   explorer:     '01-explore.md',
@@ -31,7 +36,11 @@ export class AgentRunner {
     const config = vscode.workspace.getConfiguration('multi-agents');
     const workflowsDir = config.get<string>('workflowsDir', '.ai-workflows');
     const maxAgents = config.get<number>('maxConcurrentAgents', 3);
-    const workspaceRoot = vscode.workspace.workspaceFolders![0].uri;
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+    if (!workspaceRoot) {
+      opts.onError(new Error('No workspace folder open'));
+      return;
+    }
 
     // ── 0. Concurrency gate + early registration (atomic check-and-claim) ────────
     if (this.registry.isFull(maxAgents)) {
@@ -46,6 +55,11 @@ export class AgentRunner {
     this.registry.register(registryKey, controller);
 
     // ── 1. Read agent .md → system prompt ──────────────────────────────────────
+    if (!VALID_ROLES.has(opts.role)) {
+      opts.onError(new Error(`Invalid agent role: ${opts.role}`));
+      this.registry.unregister(registryKey);
+      return;
+    }
     const agentMdUri = vscode.Uri.joinPath(workspaceRoot, workflowsDir, 'agents', `${opts.role}.md`);
     let systemPrompt: string;
     try {
@@ -74,12 +88,16 @@ export class AgentRunner {
       model = 'qwen3.6:35b-a3b';
     }
 
-    // ── 3. Read artifact files (skip missing) ───────────────────────────────────
+    // ── 3. Read artifact files (skip missing, reject path traversal) ────────────
+    const changesDir = vscode.Uri.joinPath(workspaceRoot, workflowsDir, 'sdd', 'changes', opts.changeName);
+    const changesDirPrefix = changesDir.path + '/';
     const artifactTexts: string[] = [];
     for (const artifactPath of opts.artifactPaths ?? []) {
-      const uri = vscode.Uri.joinPath(
-        workspaceRoot, workflowsDir, 'sdd', 'changes', opts.changeName, artifactPath,
-      );
+      const uri = vscode.Uri.joinPath(changesDir, artifactPath);
+      if (!uri.path.startsWith(changesDirPrefix)) {
+        console.error(`[AgentRunner] Rejected path traversal in artifact: ${artifactPath}`);
+        continue;
+      }
       try {
         const bytes = await vscode.workspace.fs.readFile(uri);
         artifactTexts.push(`## ${artifactPath}\n\n${Buffer.from(bytes).toString('utf8')}`);
@@ -157,6 +175,8 @@ export class AgentRunner {
         );
       } catch (err) {
         console.error('[AgentRunner] Failed to write artifact:', err);
+        opts.onError(err instanceof Error ? err : new Error(String(err)));
+        return;
       }
     }
 

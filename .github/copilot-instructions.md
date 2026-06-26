@@ -67,3 +67,8 @@ Auto-load from the global Copilot skills catalog when context matches:
 | Creating or preparing a PR | `branch-pr` |
 | Running or writing vitest tests | `test-runner` |
 | React re-renders, hooks, hydration (webview UI) | `react-doctor` |
+| Agent coordination, fault tolerance, failure modes | `ddia-distributed-systems` |
+| StateManager consistency, read-your-writes, ordering | `ddia-consistency-consensus` |
+| Agent event streams, message passing, ordering guarantees | `ddia-stream-processing` |
+| Architectural trade-offs, any system design decision | `ddia-architecture-tradeoffs` |
+| Any DDIA question — auto-routes to the right skill | `ddia-skill-router` |

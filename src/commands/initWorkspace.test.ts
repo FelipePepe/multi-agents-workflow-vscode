@@ -12,7 +12,7 @@ const mockShowWarning    = vi.hoisted(() => vi.fn());
 const mockShowInfo       = vi.hoisted(() => vi.fn());
 const mockExecuteCommand = vi.hoisted(() => vi.fn());
 const mockGetConfig      = vi.hoisted(() => vi.fn());
-const mockWorkspaceFolders = vi.hoisted(() => ({ value: [{ uri: { fsPath: '/workspace' } }] as typeof import('vscode').workspace.workspaceFolders }));
+const mockWorkspaceFolders = vi.hoisted(() => ({ value: [{ uri: { fsPath: '/workspace' } }] as unknown as typeof import('vscode').workspace.workspaceFolders }));
 
 vi.mock('vscode', () => ({
   workspace: {

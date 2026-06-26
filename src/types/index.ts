@@ -8,6 +8,11 @@ export type SddPhase =
   | 'sdd-verify'
   | 'sdd-archive';
 
+export const ALL_SDD_PHASES: SddPhase[] = [
+  'sdd-explore', 'sdd-propose', 'sdd-spec', 'sdd-design',
+  'sdd-tasks', 'sdd-apply', 'sdd-verify', 'sdd-archive',
+];
+
 export type PhaseStatus = 'pending' | 'in-progress' | 'complete' | 'fail';
 
 export type AgentRole =

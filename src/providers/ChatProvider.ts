@@ -3,6 +3,7 @@ import { ALL_SDD_PHASES } from '../types/index.js';
 import type { SddPhase, PhaseStatus } from '../types/index.js';
 import type { StateManager } from '../StateManager.js';
 import type { WorkflowOrchestrator } from '../WorkflowOrchestrator.js';
+import { assertSafeUrl } from '../agents/OllamaProvider.js';
 
 // ── Phase helpers ─────────────────────────────────────────────────────────────
 
@@ -58,9 +59,11 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     view.webview.options = { enableScripts: true };
     view.webview.html = this.buildHtml(view.webview);
 
-    view.webview.onDidReceiveMessage(async (msg: { type: string; text: string }) => {
+    view.webview.onDidReceiveMessage((msg: { type: string; text: string }) => {
       if (msg.type === 'submit') {
-        await this.handleInput(msg.text);
+        this.handleInput(msg.text).catch((err: unknown) => {
+          this.post({ type: 'message', role: 'error', text: `Internal error: ${String(err)}` });
+        });
       }
     });
 
@@ -187,6 +190,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     this.post({ type: 'message', role: 'bot', text: `Pinging ${baseUrl} …` });
 
     try {
+      assertSafeUrl(baseUrl);
       const res = await fetch(`${baseUrl}/api/tags`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json() as { models: Array<{ name: string }> };
@@ -217,7 +221,12 @@ export class ChatProvider implements vscode.WebviewViewProvider {
       }
     }
 
-    await this.stateManager.create(name);
+    try {
+      await this.stateManager.create(name);
+    } catch (err) {
+      this.post({ type: 'message', role: 'error', text: `Failed to create change: ${String(err)}` });
+      return;
+    }
 
     this.post({ type: 'stream-start', label: `Running change: ${name}` });
     try {
@@ -461,7 +470,9 @@ export class ChatProvider implements vscode.WebviewViewProvider {
   // ── Webview helpers ───────────────────────────────────────────────────────
 
   private post(msg: ToWebview): void {
-    void this._view?.webview.postMessage(msg);
+    this._view?.webview.postMessage(msg).then(undefined, (err: unknown) => {
+      console.warn('[ChatProvider] postMessage failed:', err);
+    });
   }
 
   // ── HTML ──────────────────────────────────────────────────────────────────
@@ -470,7 +481,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
     const nonce = crypto.randomUUID().replace(/-/g, '');
     const csp = [
       `default-src 'none'`,
-      `style-src ${webview.cspSource} 'unsafe-inline'`,
+      `style-src 'nonce-${nonce}'`,
       `script-src 'nonce-${nonce}'`,
     ].join('; ');
 
@@ -480,7 +491,7 @@ export class ChatProvider implements vscode.WebviewViewProvider {
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="${csp}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
+  <style nonce="${nonce}">
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {

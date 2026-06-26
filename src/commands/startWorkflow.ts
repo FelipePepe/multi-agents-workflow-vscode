@@ -30,7 +30,12 @@ export async function startWorkflow(
     return;
   }
 
-  await stateManager.create(name);
+  try {
+    await stateManager.create(name);
+  } catch (err) {
+    vscode.window.showErrorMessage(`Multi-Agents: Failed to create change — ${String(err)}`);
+    return;
+  }
   workflowsProvider.refresh();
 
   orchestrator.run(name).catch((err: unknown) => {

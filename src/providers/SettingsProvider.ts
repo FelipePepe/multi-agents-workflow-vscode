@@ -13,7 +13,7 @@ function getHtml(
   const nonce = crypto.randomUUID().replace(/-/g, '');
   const csp = [
     `default-src 'none'`,
-    `style-src ${webview.cspSource} 'unsafe-inline'`,
+    `style-src 'nonce-${nonce}'`,
     `script-src 'nonce-${nonce}'`,
   ].join('; ');
 
@@ -23,7 +23,7 @@ function getHtml(
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="${csp}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
+  <style nonce="${nonce}">
     body {
       font-family: var(--vscode-font-family);
       font-size: var(--vscode-font-size);
@@ -138,30 +138,54 @@ export class SettingsProvider implements vscode.WebviewViewProvider {
   static readonly viewId = 'multi-agents.settingsView';
 
   private _view?: vscode.WebviewView;
+  private readonly _disposables: vscode.Disposable[] = [];
 
   resolveWebviewView(view: vscode.WebviewView): void {
     this._view = view;
     view.webview.options = { enableScripts: true };
     this._render();
 
-    view.webview.onDidReceiveMessage((msg: SettingsMessage) => {
-      if (msg.type === 'save') {
-        const config = vscode.workspace.getConfiguration('multi-agents');
-        Promise.all([
-          config.update('ollamaBaseUrl', msg.ollamaBaseUrl, vscode.ConfigurationTarget.Workspace),
-          config.update('workflowsDir', msg.workflowsDir, vscode.ConfigurationTarget.Workspace),
-          config.update('maxConcurrentAgents', msg.maxConcurrentAgents, vscode.ConfigurationTarget.Workspace),
-        ]).then(() => {
-          view.webview.postMessage({ type: 'saved' });
-        }, (err: unknown) => {
-          vscode.window.showErrorMessage(`Failed to save settings: ${String(err)}`);
-        });
-      }
-    });
-
-    vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('multi-agents')) this._render();
-    });
+    this._disposables.push(
+      view.webview.onDidReceiveMessage((msg: SettingsMessage) => {
+        if (msg.type === 'save') {
+          let url: URL;
+          try { url = new URL(msg.ollamaBaseUrl); } catch {
+            vscode.window.showErrorMessage('Invalid Ollama URL.');
+            return;
+          }
+          if (!['http:', 'https:'].includes(url.protocol)) {
+            vscode.window.showErrorMessage('Ollama URL must use http or https.');
+            return;
+          }
+          if (!msg.workflowsDir || /[./\\]/.test(msg.workflowsDir[0]) || msg.workflowsDir.includes('..')) {
+            vscode.window.showErrorMessage('Workflows directory must be a simple relative name.');
+            return;
+          }
+          const maxAgents = Math.trunc(msg.maxConcurrentAgents);
+          if (!Number.isFinite(maxAgents) || maxAgents < 1 || maxAgents > 10) {
+            vscode.window.showErrorMessage('Max concurrent agents must be between 1 and 10.');
+            return;
+          }
+          const config = vscode.workspace.getConfiguration('multi-agents');
+          Promise.all([
+            config.update('ollamaBaseUrl', msg.ollamaBaseUrl, vscode.ConfigurationTarget.Workspace),
+            config.update('workflowsDir', msg.workflowsDir, vscode.ConfigurationTarget.Workspace),
+            config.update('maxConcurrentAgents', maxAgents, vscode.ConfigurationTarget.Workspace),
+          ]).then(() => {
+            view.webview.postMessage({ type: 'saved' });
+          }, (err: unknown) => {
+            vscode.window.showErrorMessage(`Failed to save settings: ${String(err)}`);
+          });
+        }
+      }),
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration('multi-agents')) this._render();
+      }),
+      view.onDidDispose(() => {
+        for (const d of this._disposables) d.dispose();
+        this._disposables.length = 0;
+      }),
+    );
   }
 
   private _render(): void {

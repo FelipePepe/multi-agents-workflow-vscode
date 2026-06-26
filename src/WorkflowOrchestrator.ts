@@ -146,8 +146,8 @@ export class WorkflowOrchestrator {
       );
       const bytes = await vscode.workspace.fs.readFile(uri);
       return JSON.parse(Buffer.from(bytes).toString('utf8')) as WorkflowConfig;
-    } catch {
-      vscode.window.showErrorMessage('Multi-Agents: workflow.json not found or invalid.');
+    } catch (err) {
+      vscode.window.showErrorMessage(`Multi-Agents: workflow.json not found or invalid — ${String(err)}`);
       return null;
     }
   }

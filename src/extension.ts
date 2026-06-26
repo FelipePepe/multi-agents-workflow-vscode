@@ -21,7 +21,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const workspaceRoot = vscode.workspace.workspaceFolders[0].uri;
   const config = vscode.workspace.getConfiguration('multi-agents');
-  const workflowsDir = config.get<string>('workflowsDir', '.ai-workflows');
+  const rawWorkflowsDir = config.get<string>('workflowsDir', '.ai-workflows');
+  const workflowsDir = /^[a-zA-Z0-9._-]+$/.test(rawWorkflowsDir) && !rawWorkflowsDir.startsWith('.')
+    ? rawWorkflowsDir
+    : '.ai-workflows';
 
   const providerSetting = config.get<string>('provider', 'ollama');
   const llmProvider = providerSetting === 'vscode-lm'
